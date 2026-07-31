@@ -71,12 +71,3 @@ void loop() {
 
   delay(3000);
 }
-```eof
-
-### Resumo das Aplicações no Código:
-
-1. **`setCursor(col, lin)`**: Usado para definir exatamente em qual posição o próximo caractere será impresso na tela. Lembre-se que a contagem inicia em `0` (Coluna 0, Linha 0 = Canto superior esquerdo).
-2. **`backlight()` e `noBacklight()`**: Utilizados no laço `for` para fazer a tela piscar (criar alertas) e demonstrar como desligar a iluminação do visor quando necessário economizar energia.
-3. **`clear()`**: Usado para apagar tudo que estava escrito na tela e redefinir a posição do cursor automaticamente para `(0,0)`.
-
-*Dica: Certifique-se de ter a biblioteca **LiquidCrystal_I2C** instalada no seu Arduino IDE.*
