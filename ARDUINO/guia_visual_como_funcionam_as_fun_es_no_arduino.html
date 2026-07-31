@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia Visual: Como Funcionam as Funções no Arduino</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        senai: {
+                            blue: '#164194',
+                            darkBlue: '#0d2b6b',
+                            lightBlue: '#3b82f6',
+                            green: '#00A859',
+                            orange: '#F59E0B'
+                        },
+                        arduino: {
+                            teal: '#00979D',
+                            darkTeal: '#005C60',
+                            lightTeal: '#43C2C7',
+                            yellow: '#E5AD24'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                        heading: ['Montserrat', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar and animations */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00979D;
+        }
+
+        .code-highlight {
+            transition: all 0.2s ease;
+        }
+        .code-highlight:hover {
+            background-color: rgba(0, 151, 157, 0.15);
+            border-radius: 4px;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        .animate-pulse-glow {
+            animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        @keyframes signalFlow {
+            0% { stroke-dashoffset: 40; }
+            100% { stroke-dashoffset: 0; }
+        }
+        .animated-wire {
+            stroke-dasharray: 8, 8;
+            animation: signalFlow 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col selection:bg-arduino-teal selection:text-white">
+
+    <!-- CABEÇALHO SENAI E ARDUINO -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <span class="bg-senai-blue text-white text-xs font-bold px-3 py-1.5 rounded tracking-wider uppercase font-heading">
+                    SENAI
+                </span>
+                <div class="h-6 w-px bg-slate-700"></div>
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-microchip text-arduino-teal text-xl"></i>
+                    <h1 class="font-heading font-bold text-lg md:text-xl text-white tracking-tight">
+                        Anatomia & Funcionamento de Funções no Arduino
+                    </h1>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3 text-xs md:text-sm text-slate-400">
+                <span class="hidden sm:inline-block bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-arduino-lightTeal">
+                    <i class="fa-solid fa-code text-xs mr-1"></i> Programação C/C++
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- INTRODUÇÃO VISUAL: O QUE É UMA FUNÇÃO? -->
+        <section class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+            <div class="absolute -right-20 -top-20 w-80 h-80 bg-arduino-teal/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="inline-flex items-center space-x-2 bg-arduino-teal/10 border border-arduino-teal/30 text-arduino-lightTeal px-3 py-1 rounded-full text-xs font-semibold">
+                        <i class="fa-solid fa-cubes"></i>
+                        <span>Conceito Fundamental</span>
+                    </div>
+                    <h2 class="text-3xl font-extrabold font-heading text-white">
+                        O que é uma Função no Microcontrolador?
+                    </h2>
+                    <p class="text-slate-300 text-base leading-relaxed">
+                        Uma <strong class="text-arduino-lightTeal">função</strong> é um bloco de código autônomo que realiza uma tarefa específica. Ela recebe dados de entrada (parâmetros), executa instruções lógicas e pode (ou não) devolver um resultado (retorno).
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        <div class="bg-slate-800/80 border border-slate-700/60 p-3 rounded-xl flex items-start space-x-3">
+                            <i class="fa-solid fa-recycle text-emerald-400 text-lg mt-0.5"></i>
+                            <div>
+                                <h4 class="text-xs font-bold text-white uppercase">Reutilização</h4>
+                                <p class="text-xs text-slate-400">Evita repetição de código no programa.</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/60 p-3 rounded-xl flex items-start space-x-3">
+                            <i class="fa-solid fa-sitemap text-sky-400 text-lg mt-0.5"></i>
+                            <div>
+                                <h4 class="text-xs font-bold text-white uppercase">Organização</h4>
+                                <p class="text-xs text-slate-400">Divide problemas complexos em partes.</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700/60 p-3 rounded-xl flex items-start space-x-3">
+                            <i class="fa-solid fa-bug-slash text-amber-400 text-lg mt-0.5"></i>
+                            <div>
+                                <h4 class="text-xs font-bold text-white uppercase">Manutenção</h4>
+                                <p class="text-xs text-slate-400">Facilita correções e depuração.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DIAGRAMA VISUAL "CAIXA PRETA" DE UMA FUNÇÃO -->
+                <div class="lg:col-span-5 bg-slate-950/80 border border-slate-800 rounded-xl p-5 relative">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 text-center">
+                        <i class="fa-solid fa-diagram-project mr-1 text-arduino-teal"></i>
+                        Modelo Mental de Entrada / Processamento / Saída
+                    </h3>
+
+                    <div class="flex flex-col items-center justify-center space-y-4 py-2">
+                        <!-- Entrada -->
+                        <div class="w-full flex items-center justify-between bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-lg">
+                            <span class="text-xs font-mono text-emerald-400 font-bold"><i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> Entradas (Parâmetros)</span>
+                            <span class="text-xs bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-mono">int v1, int v2</span>
+                        </div>
+
+                        <!-- Seta Entrada -> Processo -->
+                        <i class="fa-solid fa-arrow-down text-arduino-lightTeal animate-bounce"></i>
+
+                        <!-- Caixa do Processamento -->
+                        <div class="w-full bg-gradient-to-r from-arduino-darkTeal/80 to-senai-blue/80 border-2 border-arduino-teal rounded-xl p-4 text-center shadow-lg shadow-arduino-teal/10">
+                            <div class="text-xs font-bold text-arduino-lightTeal tracking-wider uppercase mb-1">Processamento Interno</div>
+                            <div class="font-mono text-sm text-white font-semibold">resultado = v1 + v2;</div>
+                            <div class="text-[11px] text-slate-300 mt-1">Executa o algoritmo isolado</div>
+                        </div>
+
+                        <!-- Seta Processo -> Saída -->
+                        <i class="fa-solid fa-arrow-down text-arduino-lightTeal animate-bounce"></i>
+
+                        <!-- Saída -->
+                        <div class="w-full flex items-center justify-between bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-lg">
+                            <span class="text-xs font-mono text-amber-400 font-bold"><i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Saída (Valor Retornado)</span>
+                            <span class="text-xs bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-mono">return resultado;</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ANATOMIA INTERATIVA DA SINTAXE DE UMA FUNÇÃO -->
+        <section class="space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold font-heading text-white flex items-center gap-2">
+                        <i class="fa-solid fa-code text-arduino-teal"></i>
+                        1. Anatomia da Sintaxe em C/C++
+                    </h2>
+                    <p class="text-slate-400 text-sm">Clique nos elementos do código para entender o papel de cada parte da função.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                <!-- CÓDIGO INTERATIVO (ESQUERDA) -->
+                <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 font-mono text-sm md:text-base leading-relaxed flex flex-col justify-center space-y-3 shadow-inner">
+                    <div class="text-xs text-slate-500 font-sans uppercase font-semibold mb-1 flex items-center justify-between">
+                        <span>Exemplo de Função Customizada</span>
+                        <span class="text-slate-600">Passe o mouse ou clique</span>
+                    </div>
+
+                    <div class="bg-slate-950 p-4 md:p-6 rounded-xl border border-slate-800/80 text-slate-200 overflow-x-auto shadow-2xl">
+                        <!-- Linha 1: Assinatura da função -->
+                        <div>
+                            <span id="part-return" onclick="inspectPart('return')" class="code-highlight cursor-pointer text-pink-400 font-bold px-1 py-0.5 border-b-2 border-pink-500/50">int</span>
+                            <span id="part-name" onclick="inspectPart('name')" class="code-highlight cursor-pointer text-sky-300 font-bold px-1 py-0.5 border-b-2 border-sky-500/50">calcularDistancia</span>
+                            <span class="text-slate-400">(</span>
+                            <span id="part-params" onclick="inspectPart('params')" class="code-highlight cursor-pointer text-emerald-400 font-bold px-1 py-0.5 border-b-2 border-emerald-500/50">int tempoMs, int velocidade</span>
+                            <span class="text-slate-400">) {</span>
+                        </div>
+
+                        <!-- Linha 2: Corpo do código -->
+                        <div class="pl-6 py-1">
+                            <span id="part-body" onclick="inspectPart('body')" class="code-highlight cursor-pointer text-slate-300 block py-0.5 px-1 border-l-2 border-slate-600/50 my-1">
+                                <span class="text-pink-400">int</span> distancia = (tempoMs * velocidade) / <span class="code-number text-amber-400">1000</span>;
+                            </span>
+                        </div>
+
+                        <!-- Linha 3: Retorno -->
+                        <div class="pl-6">
+                            <span id="part-retval" onclick="inspectPart('retval')" class="code-highlight cursor-pointer text-amber-300 font-bold px-1 py-0.5 border-b-2 border-amber-500/50">
+                                <span class="text-pink-400">return</span> distancia;
+                            </span>
+                        </div>
+
+                        <!-- Linha 4: Fechamento -->
+                        <div class="text-slate-400">}</div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 text-xs font-sans">
+                        <button onclick="inspectPart('return')" class="px-3 py-1.5 rounded-lg bg-pink-500/10 text-pink-300 border border-pink-500/30 hover:bg-pink-500/20 transition">Tipo de Retorno</button>
+                        <button onclick="inspectPart('name')" class="px-3 py-1.5 rounded-lg bg-sky-500/10 text-sky-300 border border-sky-500/30 hover:bg-sky-500/20 transition">Nome da Função</button>
+                        <button onclick="inspectPart('params')" class="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 transition">Parâmetros</button>
+                        <button onclick="inspectPart('body')" class="px-3 py-1.5 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-700 transition">Corpo { }</button>
+                        <button onclick="inspectPart('retval')" class="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition">Comando Return</button>
+                    </div>
+                </div>
+
+                <!-- PAINEL DE EXPLICAÇÃO (DIREITA) -->
+                <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+                    <div>
+                        <div class="flex items-center space-x-2 text-arduino-lightTeal mb-3">
+                            <i id="inspect-icon" class="fa-solid fa-circle-info text-xl"></i>
+                            <h3 id="inspect-title" class="font-heading font-bold text-lg text-white">
+                                Selecione uma parte do código
+                            </h3>
+                        </div>
+                        <p id="inspect-desc" class="text-slate-300 text-sm leading-relaxed">
+                            Clique nas palavras destacadas no código ao lado para visualizar a explicação técnica detalhada sobre o funcionamento dessa parte na linguagem C/C++ do Arduino.
+                        </p>
+                    </div>
+
+                    <div id="inspect-box" class="mt-6 p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono space-y-2">
+                        <div class="text-slate-400 font-sans font-bold">Dica Rápida:</div>
+                        <div class="text-slate-300">Se a função não precisar retornar nenhum valor numérico ou lógico, utiliza-se a palavra reservada <code class="text-pink-400 font-bold">void</code> como tipo de retorno.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FLUXO DE EXECUÇÃO: setup(), loop() E AS FUNÇÕES -->
+        <section class="space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold font-heading text-white flex items-center gap-2">
+                    <i class="fa-solid fa-route text-arduino-teal"></i>
+                    2. Fluxo de Execução no Microcontrolador
+                </h2>
+                <p class="text-slate-400 text-sm">A CPU do Arduino executa o código sequencialmente. Quando encontra uma função, o ponteiro de instrução salta para a função e depois retorna.</p>
+            </div>
+
+            <!-- SIMULADOR DE PASSO A PASSO DA CPU -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+                <!-- CONTROLES DO PASSO A PASSO -->
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div class="flex items-center space-x-3">
+                        <button id="btn-prev-step" onclick="changeStep(-1)" disabled class="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-2">
+                            <i class="fa-solid fa-step-backward"></i> Anterior
+                        </button>
+                        <button id="btn-next-step" onclick="changeStep(1)" class="px-4 py-2 bg-arduino-teal hover:bg-arduino-darkTeal text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-arduino-teal/20">
+                            Próximo Passo <i class="fa-solid fa-step-forward"></i>
+                        </button>
+                        <button onclick="resetFlowStep()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="text-xs text-slate-400 font-mono">
+                        Passo Atual: <span id="flow-step-number" class="text-arduino-lightTeal font-bold">1</span> / 6
+                    </div>
+                </div>
+
+                <!-- FLUXO VISUAL EM DUAS COLUNAS DE CÓDIGO -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- FLUXO PRINCIPAL (setup + loop) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs space-y-2">
+                        <div class="text-slate-500 font-sans font-bold uppercase text-[11px] border-b border-slate-800 pb-1 mb-2">
+                            Fluxo Principal (CPU Main)
+                        </div>
+
+                        <div id="flow-line-1" class="p-2 rounded transition">
+                            <span class="text-pink-400">void</span> <span class="text-sky-300 font-bold">setup</span>() {<br>
+                            &nbsp;&nbsp;<span class="text-sky-300">pinMode</span>(<span class="text-amber-400">13</span>, <span class="text-pink-400">OUTPUT</span>);<br>
+                            }
+                        </div>
+
+                        <div id="flow-line-2" class="p-2 rounded transition">
+                            <span class="text-pink-400">void</span> <span class="text-sky-300 font-bold">loop</span>() {
+                        </div>
+
+                        <div id="flow-line-3" class="p-2 rounded transition pl-6">
+                            <span class="text-slate-400">// Chamando a função customizada:</span><br>
+                            <span class="text-arduino-lightTeal font-bold">piscarAlerta</span>(<span class="text-amber-400">3</span>, <span class="text-amber-400">200</span>); <i class="fa-solid fa-share text-arduino-teal ml-1"></i>
+                        </div>
+
+                        <div id="flow-line-6" class="p-2 rounded transition pl-6">
+                            <span class="text-slate-400">// Continua execução no loop...</span><br>
+                            <span class="text-sky-300">delay</span>(<span class="text-amber-400">1000</span>);<br>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- FUNÇÃO CHAMADA (ISR / AUXILIAR) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs space-y-2 flex flex-col justify-between">
+                        <div>
+                            <div class="text-slate-500 font-sans font-bold uppercase text-[11px] border-b border-slate-800 pb-1 mb-2 flex items-center justify-between">
+                                <span>Sub-Rotina / Função Auxiliar</span>
+                                <span class="text-arduino-lightTeal">Ponteiro da CPU</span>
+                            </div>
+
+                            <div id="flow-line-4" class="p-2 rounded transition">
+                                <span class="text-pink-400">void</span> <span class="text-arduino-lightTeal font-bold">piscarAlerta</span>(<span class="text-pink-400">int</span> vezes, <span class="text-pink-400">int</span> ms) {<br>
+                                &nbsp;&nbsp;<span class="text-pink-400">for</span>(<span class="text-pink-400">int</span> i = <span class="text-amber-400">0</span>; i &lt; vezes; i++) {<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-sky-300">digitalWrite</span>(<span class="text-amber-400">13</span>, <span class="text-pink-400">HIGH</span>);<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-sky-300">delay</span>(ms);<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-sky-300">digitalWrite</span>(<span class="text-amber-400">13</span>, <span class="text-pink-400">LOW</span>);<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-sky-300">delay</span>(ms);<br>
+                                &nbsp;&nbsp;}
+                            </div>
+
+                            <div id="flow-line-5" class="p-2 rounded transition pl-2">
+                                &nbsp;&nbsp;<span class="text-slate-400">// Fim da função: retorna ao loop()</span><br>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- CARD EXPLICATIVO DO PASSO ATUAL -->
+                        <div class="bg-slate-900 border border-slate-800 p-3 rounded-lg text-xs space-y-1">
+                            <span class="text-arduino-lightTeal font-bold font-sans uppercase tracking-wider block">O que a CPU está fazendo?</span>
+                            <p id="flow-explanation" class="text-slate-300 font-sans">
+                                O programa inicia executando as configurações do setup() uma única vez após ser energizado.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- OS 4 TIPOS DE FUNÇÕES NO ARDUINO -->
+        <section class="space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold font-heading text-white flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-arduino-teal"></i>
+                    3. Matriz dos 4 Tipos de Funções
+                </h2>
+                <p class="text-slate-400 text-sm">Dependendo da necessidade do projeto, uma função pode ter ou não argumentos e retorno.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- TIPO 1: Sem Retorno, Sem Parâmetro -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-arduino-teal/50 transition shadow-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-pink-400 bg-pink-500/10 px-2.5 py-1 rounded border border-pink-500/20">
+                            1. Sem Retorno / Sem Parâmetros
+                        </span>
+                        <code class="text-xs text-slate-400 font-mono">void acenderLED()</code>
+                    </div>
+                    <p class="text-xs text-slate-300">Executa uma ação fixa no circuito sem precisar de dados externos nem responder nada.</p>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-200">
+                        <span class="text-pink-400">void</span> <span class="text-sky-300">acenderAlerta</span>() {<br>
+                        &nbsp;&nbsp;<span class="text-sky-300">digitalWrite</span>(<span class="text-amber-400">13</span>, <span class="text-pink-400">HIGH</span>);<br>
+                        }
+                    </div>
+                </div>
+
+                <!-- TIPO 2: Sem Retorno, Com Parâmetro -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-arduino-teal/50 transition shadow-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/20">
+                            2. Sem Retorno / Com Parâmetros
+                        </span>
+                        <code class="text-xs text-slate-400 font-mono">void ligarPino(int pino)</code>
+                    </div>
+                    <p class="text-xs text-slate-300">Recebe dados de configuração externos para personalizar a ação (ex: qual pino acionar).</p>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-200">
+                        <span class="text-pink-400">void</span> <span class="text-sky-300">acionarRele</span>(<span class="text-pink-400">int</span> pino, <span class="text-pink-400">bool</span> estado) {<br>
+                        &nbsp;&nbsp;<span class="text-sky-300">digitalWrite</span>(pino, estado);<br>
+                        }
+                    </div>
+                </div>
+
+                <!-- TIPO 3: Com Retorno, Sem Parâmetro -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-arduino-teal/50 transition shadow-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-sky-400 bg-sky-500/10 px-2.5 py-1 rounded border border-sky-500/20">
+                            3. Com Retorno / Sem Parâmetros
+                        </span>
+                        <code class="text-xs text-slate-400 font-mono">int lerBotoes()</code>
+                    </div>
+                    <p class="text-xs text-slate-300">Lê um sensor ou estado fixo do hardware e devolve a resposta para quem chamou.</p>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-200">
+                        <span class="text-pink-400">int</span> <span class="text-sky-300">lerNivelTanque</span>() {<br>
+                        &nbsp;&nbsp;<span class="text-pink-400">int</span> valor = <span class="text-sky-300">analogRead</span>(A0);<br>
+                        &nbsp;&nbsp;<span class="text-pink-400">return</span> valor;<br>
+                        }
+                    </div>
+                </div>
+
+                <!-- TIPO 4: Com Retorno, Com Parâmetro -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-arduino-teal/50 transition shadow-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20">
+                            4. Com Retorno / Com Parâmetros
+                        </span>
+                        <code class="text-xs text-slate-400 font-mono">float converter(float v)</code>
+                    </div>
+                    <p class="text-xs text-slate-300">Realiza cálculos matemáticos ou conversões complexas com os dados informados.</p>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-200">
+                        <span class="text-pink-400">float</span> <span class="text-sky-300">converterCelsius</span>(<span class="text-pink-400">float</span> fahrenheit) {<br>
+                        &nbsp;&nbsp;<span class="text-pink-400">return</span> (fahrenheit - <span class="text-amber-400">32</span>) * <span class="text-amber-400">5.0</span> / <span class="text-amber-400">9.0</span>;<br>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LABORATÓRIO INTERATIVO: TESTE SUAS FUNÇÕES -->
+        <section class="space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <span class="text-xs font-bold text-arduino-lightTeal bg-arduino-teal/10 px-3 py-1 rounded-full border border-arduino-teal/30">
+                            <i class="fa-solid fa-flask"></i> Laboratório Interativo
+                        </span>
+                        <h2 class="text-2xl font-bold font-heading text-white mt-2">
+                            Simulador de Chamada de Funções em Tempo Real
+                        </h2>
+                    </div>
+                    <p class="text-xs text-slate-400 max-w-md">
+                        Altere os valores de entrada e veja o código sendo preparado e executado, com os resultados calculados instantaneamente.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    <!-- CONTROLES DE ENTRADA DO SIMULADOR (ESQUERDA) -->
+                    <div class="lg:col-span-5 space-y-5 bg-slate-950/80 p-5 rounded-xl border border-slate-800">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-arduino-teal"></i>
+                            Parâmetros de Entrada
+                        </h3>
+
+                        <!-- Controle 1: Tensão do Sensor -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <label class="text-slate-300">Leitura ADC (0 - 1023):</label>
+                                <span id="sim-adc-val" class="text-emerald-400 font-bold">512</span>
+                            </div>
+                            <input type="range" id="sim-adc-input" min="0" max="1023" value="512" oninput="updateSimulation()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-arduino-teal">
+                            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                <span>0 (0V)</span>
+                                <span>512 (2.5V)</span>
+                                <span>1023 (5.0V)</span>
+                            </div>
+                        </div>
+
+                        <!-- Controle 2: Fator de Escala -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <label class="text-slate-300">Ganho de Escala (Multiplicador):</label>
+                                <span id="sim-scale-val" class="text-sky-400 font-bold">2.0</span>
+                            </div>
+                            <input type="range" id="sim-scale-input" min="0.5" max="5.0" step="0.5" value="2.0" oninput="updateSimulation()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-arduino-teal">
+                        </div>
+
+                        <!-- Ação Chamada -->
+                        <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs space-y-1">
+                            <span class="text-slate-400 font-semibold block">Sintaxe da chamada que a CPU executa:</span>
+                            <code id="sim-call-syntax" class="text-amber-300 font-mono font-bold block">
+                                float resultado = calcularNivel(512, 2.0);
+                            </code>
+                        </div>
+                    </div>
+
+                    <!-- RESULTADOS E VISUALIZAÇÃO GRÁFICA (DIREITA) -->
+                    <div class="lg:col-span-7 space-y-5">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Indicador de Tensão -->
+                            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-center space-y-1">
+                                <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Tensão Calculada</span>
+                                <div id="sim-voltage-out" class="text-3xl font-extrabold font-mono text-emerald-400">2.50 V</div>
+                                <span class="text-[10px] text-slate-500 block">(1023 unidades = 5.0V)</span>
+                            </div>
+
+                            <!-- Indicador de Porcentagem Processada -->
+                            <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl text-center space-y-1">
+                                <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Resultado Retornado</span>
+                                <div id="sim-percent-out" class="text-3xl font-extrabold font-mono text-arduino-lightTeal">100.0 %</div>
+                                <span class="text-[10px] text-slate-500 block">retornado pela função</span>
+                            </div>
+                        </div>
+
+                        <!-- CÓDIGO DA FUNÇÃO EXECUTADA -->
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs space-y-1 text-slate-300">
+                            <div class="text-[11px] text-slate-500 font-sans font-bold border-b border-slate-800 pb-1 mb-2">
+                                Função executada internamente:
+                            </div>
+                            <div><span class="text-pink-400">float</span> <span class="text-sky-300">calcularNivel</span>(<span class="text-pink-400">int</span> adc, <span class="text-pink-400">float</span> ganho) {</div>
+                            <div class="pl-4"><span class="text-pink-400">float</span> tensao = (adc / <span class="text-amber-400">1023.0</span>) * <span class="text-amber-400">5.0</span>;</div>
+                            <div class="pl-4"><span class="text-pink-400">float</span> porcentagem = (tensao / <span class="text-amber-400">5.0</span>) * <span class="text-amber-400">100.0</span> * ganho;</div>
+                            <div class="pl-4"><span class="text-pink-400">return</span> porcentagem;</div>
+                            <div>}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ESCOPO DE VARIÁVEIS: GLOBAL VS LOCAL -->
+        <section class="space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold font-heading text-white flex items-center gap-2">
+                    <i class="fa-solid fa-database text-arduino-teal"></i>
+                    4. Escopo de Variáveis (Global vs. Local)
+                </h2>
+                <p class="text-slate-400 text-sm">Entenda onde suas variáveis existem na memória RAM durante a execução das funções.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- VARIÁVEL GLOBAL -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                    <div class="flex items-center space-x-3 text-emerald-400">
+                        <i class="fa-solid fa-globe text-2xl"></i>
+                        <h3 class="font-heading font-bold text-lg text-white">Variável Global</h3>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Declarada <strong class="text-white">fora de qualquer função</strong> (no topo do programa). Ela permanece ativa durante todo o tempo de execução e pode ser lida ou alterada por qualquer função.
+                    </p>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-slate-200">
+                        <span class="text-pink-400">int</span> contadorGlobal = <span class="text-amber-400">0</span>; <span class="text-slate-500">// Global</span><br><br>
+                        <span class="text-pink-400">void</span> <span class="text-sky-300">loop</span>() {<br>
+                        &nbsp;&nbsp;contadorGlobal++; <span class="text-slate-500">// Acessível aqui!</span><br>
+                        }
+                    </div>
+                </div>
+
+                <!-- VARIÁVEL LOCAL -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                    <div class="flex items-center space-x-3 text-pink-400">
+                        <i class="fa-solid fa-box-archive text-2xl"></i>
+                        <h3 class="font-heading font-bold text-lg text-white">Variável Local</h3>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Declarada <strong class="text-white">dentro de uma função</strong>. Ela nasce quando a função é chamada e é destruída da memória assim que a função termina a execução.
+                    </p>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-slate-200">
+                        <span class="text-pink-400">void</span> <span class="text-sky-300">calcularTempo</span>() {<br>
+                        &nbsp;&nbsp;<span class="text-pink-400">int</span> inicioLocal = <span class="text-sky-300">millis</span>(); <span class="text-slate-500">// Local</span><br>
+                        } <span class="text-slate-500">// inicioLocal deixa de existir aqui!</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="bg-slate-900 border-t border-slate-800 mt-12 py-6 text-center text-xs text-slate-500">
+        <p>SENAI - Serviço Nacional de Aprendizagem Industrial &copy; 2026 — Disciplina de Microcontroladores</p>
+    </footer>
+
+    <!-- LÓGICA JAVASCRIPT DO GUIA INTERATIVO -->
+    <script>
+        // 1. DADOS DE INSPEÇÃO DE SINTAXE DE FUNÇÃO
+        const syntaxParts = {
+            'return': {
+                title: 'Tipo de Retorno (Return Type)',
+                icon: 'fa-solid fa-right-left',
+                desc: 'Define o tipo de dado que a função devolve para quem a chamou (ex: int, float, bool, char). Se a função apenas executar uma ação e não devolver nada, usa-se void.'
+            },
+            'name': {
+                title: 'Nome da Função (Identifier)',
+                icon: 'fa-solid fa-signature',
+                desc: 'É o identificador único da função. Deve ser claro e expressar a ação realizada (ex: calcularDistancia, acenderLED, lerSensor). Segue as regras de nomes de variáveis em C++.'
+            },
+            'params': {
+                title: 'Parâmetros / Argumentos de Entrada',
+                icon: 'fa-solid fa-sliders',
+                desc: 'Valores que a função precisa receber para realizar o seu cálculo ou ação. Cada parâmetro deve ter seu tipo e nome declarados entre os parênteses.'
+            },
+            'body': {
+                title: 'Corpo da Função (Function Body)',
+                icon: 'fa-solid fa-code',
+                desc: 'O bloco entre chaves { } que contém todas as instruções que serão executadas sequencialmente quando a função for chamada no programa.'
+            },
+            'retval': {
+                title: 'Comando Return (Retorno de Valor)',
+                icon: 'fa-solid fa-reply',
+                desc: 'Instrução que encerra a execução da função e envia o resultado especificado de volta para o ponto onde a função foi chamada.'
+            }
+        };
+
+        function inspectPart(partKey) {
+            const data = syntaxParts[partKey];
+            if (!data) return;
+
+            document.getElementById('inspect-title').innerText = data.title;
+            document.getElementById('inspect-desc').innerText = data.desc;
+            document.getElementById('inspect-icon').className = `${data.icon} text-xl text-arduino-lightTeal`;
+        }
+
+        // 2. SIMULADOR DO FLUXO DE EXECUÇÃO DA CPU
+        let currentStep = 1;
+        const totalSteps = 6;
+
+        const flowExplanations = {
+            1: "O microcontrolador é energizado. A CPU executa a função setup() uma única vez para configurar pinos e inicializar periféricos.",
+            2: "Após terminar o setup(), a CPU entra na função loop() e começa a executar as instruções em ciclo infinito.",
+            3: "A CPU encontra a chamada da função 'piscarAlerta(3, 200)'. O ponteiro de instrução da CPU se prepara para saltar para o endereço da função.",
+            4: "A CPU salta para a função piscarAlerta, cria as variáveis locais dos parâmetros (vezes=3, ms=200) na pilha de memória e executa o laço for.",
+            5: "O laço for encerra após piscar o LED 3 vezes. A função atinge o seu término.",
+            6: "A CPU limpa as variáveis locais da memória e retorna exatamente para a próxima linha do loop(), continuando a execução do programa."
+        };
+
+        const lineStepMap = {
+            1: [1],
+            2: [2],
+            3: [3],
+            4: [4],
+            5: [5],
+            6: [6]
+        };
+
+        function updateStepUI() {
+            document.getElementById('flow-step-number').innerText = currentStep;
+            document.getElementById('flow-explanation').innerText = flowExplanations[currentStep];
+
+            // Ativar/desativar botões
+            document.getElementById('btn-prev-step').disabled = (currentStep === 1);
+            document.getElementById('btn-next-step').disabled = (currentStep === totalSteps);
+
+            // Destacar linhas de código ativas
+            for (let i = 1; i <= 6; i++) {
+                const lineEl = document.getElementById(`flow-line-${i}`);
+                if (lineEl) {
+                    if (i === currentStep) {
+                        lineEl.className = "p-2 rounded transition bg-arduino-teal/20 border-l-4 border-arduino-teal text-white shadow-md";
+                    } else {
+                        lineEl.className = "p-2 rounded transition text-slate-400 opacity-60";
+                    }
+                }
+            }
+        }
+
+        function changeStep(delta) {
+            currentStep += delta;
+            if (currentStep < 1) currentStep = 1;
+            if (currentStep > totalSteps) currentStep = totalSteps;
+            updateStepUI();
+        }
+
+        function resetFlowStep() {
+            currentStep = 1;
+            updateStepUI();
+        }
+
+        // 3. SIMULADOR EM TEMPO REAL DO LABORATÓRIO
+        function updateSimulation() {
+            const adc = parseInt(document.getElementById('sim-adc-input').value);
+            const scale = parseFloat(document.getElementById('sim-scale-input').value);
+
+            document.getElementById('sim-adc-val').innerText = adc;
+            document.getElementById('sim-scale-val').innerText = scale.toFixed(1);
+
+            // Cálculo simulado da função
+            const voltage = (adc / 1023.0) * 5.0;
+            const percentage = (voltage / 5.0) * 100.0 * scale;
+
+            document.getElementById('sim-voltage-out').innerText = voltage.toFixed(2) + " V";
+            document.getElementById('sim-percent-out').innerText = percentage.toFixed(1) + " %";
+            document.getElementById('sim-call-syntax').innerText = `float resultado = calcularNivel(${adc}, ${scale.toFixed(1)});`;
+        }
+
+        // Inicialização ao carregar
+        window.onload = function() {
+            updateStepUI();
+            updateSimulation();
+        };
+    </script>
+</body>
+</html>
