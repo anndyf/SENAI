@@ -17,3 +17,6 @@ void setup() {
 }
 
 void loop() { }
+
+
+//descobrir o ip do pc: ipconfig getifaddr en0
