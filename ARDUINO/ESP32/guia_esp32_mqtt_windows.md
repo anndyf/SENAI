@@ -1,488 +1,250 @@
-# Guia Prático — ESP32 na Rede com MQTT (Windows)
+# Node-RED Recebendo os Dados do ESP32 (Windows)
 
-**SENAI · Sistemas Eletrônicos e Microcontrolados · Aulas 7 e 8**
+**SENAI · Sistemas Eletrônicos e Microcontroladores · Aula 9 (parte 1)**
 
-Este guia mostra, passo a passo, como programar o ESP32, conectá-lo ao Wi-Fi e fazê-lo enviar dados para um broker MQTT. Siga as etapas **na ordem** e só avance quando a etapa atual funcionar.
+Neste guia você vai instalar o **Node-RED** e montar um fluxo que recebe os dados que o ESP32 publica via MQTT. Também vai comandar o LED da placa pelo Node-RED.
 
 ---
 
-## O que você vai precisar
+## Antes de começar
 
-- Placa **ESP32 DevKit** (DOIT ESP32 DEVKIT V1 ou similar)
-- **Cabo USB de dados** (atenção: muitos cabos só carregam e não transmitem dados)
-- Computador com **Windows 10 ou 11**
-- Rede **Wi-Fi 2,4 GHz** (o ESP32 **não** funciona em redes 5 GHz)
-- Sensor **DHT11** (opcional: sem ele, o código gera dados simulados)
+Confira se a Aula 8 está funcionando:
 
-## Mapa das etapas
+- [ ] ESP32 ligado e publicando a cada 5 segundos (veja no Serial Monitor: `Publicado: {...}`)
+- [ ] Dados do ESP32 aparecendo no cliente web da HiveMQ (tópico `senai_ssa_2026/#`)
+- [ ] Você sabe o **seu número de aluno** usado no código (ex.: `aluno07`)
 
-| Etapa | O que você faz | Resultado esperado |
+## O que é o Node-RED?
+
+O Node-RED é uma ferramenta de **programação visual**. Em vez de escrever código, você arrasta **nós** (blocos) e liga um ao outro com fios. As mensagens viajam pelos fios dentro de um objeto chamado **msg**, e o conteúdo principal fica em **msg.payload**.
+
+O fluxo que vamos montar:
+
+```
+[mqtt in] ──► [json] ──► [debug]
+```
+
+| Nó | Função |
+|---|---|
+| **mqtt in** | Assina um tópico no broker e recebe as mensagens do ESP32 |
+| **json** | Garante que o texto JSON vire um objeto com campos separados |
+| **debug** | Mostra as mensagens na barra lateral |
+
+---
+
+## Etapa 1 — Instalar o Node.js
+
+O Node-RED roda sobre o **Node.js**, então ele vem primeiro.
+
+1. Acesse **nodejs.org**.
+2. Baixe a versão **LTS** (botão da esquerda, "Recomendado para a maioria").
+3. Execute o instalador `.msi` e aceite as opções padrão (Next → Next → Install).
+   - Na tela "Tools for Native Modules", **não** precisa marcar a caixa.
+4. Ao terminar, abra um **Prompt de Comando** novo: aperte **Windows + R**, digite `cmd` e aperte Enter.
+5. Confirme a instalação:
+
+   ```
+   node --version
+   ```
+
+   Deve aparecer algo como `v22.x.x`. A versão precisa ser **18 ou maior**.
+
+> **Use o Prompt de Comando (cmd), não o PowerShell.** No PowerShell pode aparecer o erro "a execução de scripts foi desabilitada neste sistema" ao usar `npm` ou `node-red`.
+
+---
+
+## Etapa 2 — Instalar e iniciar o Node-RED
+
+1. No Prompt de Comando, digite:
+
+   ```
+   npm install -g node-red
+   ```
+
+   Aguarde terminar. No final aparece uma linha como `added 277 packages`.
+
+   > Avisos amarelos (`npm warn`) podem ser ignorados. Só se preocupe com linhas vermelhas escritas `ERR!`.
+
+2. Inicie o Node-RED:
+
+   ```
+   node-red
+   ```
+
+3. Aguarde aparecer a linha:
+
+   ```
+   Server now running at http://127.0.0.1:1880/
+   ```
+
+4. Se o Windows perguntar se o **Node.js** pode acessar a rede, marque **Redes privadas** e clique em **Permitir acesso**.
+
+5. **Deixe esta janela aberta** enquanto usa o Node-RED. Se fechar, o Node-RED para.
+
+6. Abra o navegador e acesse: **http://localhost:1880**
+
+<!-- PRINT: tela inicial do Node-RED -->
+![Tela inicial do Node-RED](imagens/aula9_00_editor.png)
+
+### Conhecendo a tela
+
+| Área | Onde fica | Para que serve |
 |---|---|---|
-| 1 | Instala a Arduino IDE e grava o primeiro programa | LED azul da placa piscando |
-| 2 | Conecta o ESP32 ao Wi-Fi | IP do ESP32 aparece no Serial Monitor |
-| 3 | Instala e testa o broker Mosquitto | Mensagem de teste chega entre duas janelas |
-| 4 | ESP32 publica temperatura e umidade via MQTT | Dados chegando a cada 5 segundos e LED comandado pelo PC |
-
-> **No laboratório:** o broker (Etapa 3) roda no PC do professor. Nesse caso, pule a Etapa 3 e use o IP que o professor passar. Faça a Etapa 3 quando for praticar em casa.
+| **Paleta** | Esquerda | Todos os nós disponíveis, separados por categoria |
+| **Área de trabalho** | Centro | Onde você monta o fluxo |
+| **Barra lateral** | Direita | Aba **Debug** (🐞) mostra as mensagens |
+| **Deploy** | Botão vermelho, canto superior direito | Coloca o fluxo para funcionar. **Nada funciona antes do Deploy!** |
 
 ---
 
-## Etapa 1 — Arduino IDE e primeiro programa
+## Etapa 3 — Montar o fluxo
 
-### 1.1 Instalar a Arduino IDE
+### Passo 1 — Criar uma aba para o projeto
 
-1. Acesse **arduino.cc/en/software**.
-2. Baixe a versão **Windows (Win 10 and newer, 64 bits)**, arquivo `.exe`.
-3. Execute o instalador e aceite as opções padrão (Avançar → Avançar → Instalar).
-4. Se o Windows perguntar se deseja instalar drivers da Arduino, clique em **Instalar**.
+1. Clique no botão **+** no topo da área de trabalho para criar uma nova aba.
+2. Dê duplo clique no nome da aba e renomeie para **Aula 9 - ESP32**.
+3. Clique em **Done**.
 
-### 1.2 Adicionar o ESP32 à Arduino IDE
+<!-- PRINT: passo 1 -->
+![Passo 1 - nova aba](imagens/aula9_01_aba.png)
 
-A Arduino IDE não vem com o ESP32. Precisamos adicionar o pacote da fabricante (Espressif).
+### Passo 2 — Arrastar os nós
 
-1. Abra a Arduino IDE.
-2. Vá em **File → Preferences** (Arquivo → Preferências).
-3. No campo **Additional boards manager URLs** (URLs adicionais para gerenciadores de placas), cole:
+Arraste da paleta da esquerda para a área central, da esquerda para a direita:
 
-   ```
-   https://espressif.github.io/arduino-esp32/package_esp32_index.json
-   ```
+1. **mqtt in**: na seção **network**
+2. **json**: na seção **parser**
+3. **debug**: na seção **common**
 
-4. Clique em **OK**.
-5. Clique no ícone de **placa** na barra lateral esquerda (Boards Manager).
-6. Pesquise **esp32** e instale o pacote **esp32 by Espressif Systems**.
-   - O download é grande e pode levar vários minutos. Aguarde terminar.
+> Dica: se não achar um nó, digite o nome no campo **filter nodes**, no topo da paleta.
 
-### 1.3 Conectar a placa e escolher a porta
+<!-- PRINT: passo 2 -->
+![Passo 2 - nós na área de trabalho](imagens/aula9_02_nos.png)
 
-1. Conecte o ESP32 ao PC com o cabo USB.
-2. Em **Tools → Board → esp32**, escolha **DOIT ESP32 DEVKIT V1** (ou **ESP32 Dev Module**).
-3. Em **Tools → Port**, escolha a porta **COM** que apareceu (ex.: `COM3`, `COM5`).
+### Passo 3 — Ligar os nós
 
-**A porta COM não aparece?** Siga esta ordem:
+1. Clique na **bolinha cinza da direita** do nó **mqtt in** e arraste até a **bolinha da esquerda** do nó **json**.
+2. Faça o mesmo do **json** para o **debug**.
 
-1. **Troque o cabo USB.** Esta é a causa mais comum: cabo que só carrega.
-2. Abra o **Gerenciador de Dispositivos** (clique com o botão direito no menu Iniciar → Gerenciador de Dispositivos).
-3. Procure em **Portas (COM e LPT)** ou em **Outros dispositivos**. Se houver um item com **triângulo amarelo**, falta o driver.
-4. Olhe o chip pequeno próximo ao conector USB da placa e instale o driver correspondente:
-   - Chip **CP2102**: pesquise "CP210x USB to UART Bridge VCP Drivers" no site da **Silicon Labs**.
-   - Chip **CH340**: pesquise "CH341SER" no site da **WCH**.
-5. Desconecte e reconecte a placa. A porta COM deve aparecer.
+O resultado é `mqtt in → json → debug`.
 
-### 1.4 Gravar o primeiro programa (Blink)
+<!-- PRINT: passo 3 -->
+![Passo 3 - nós ligados](imagens/aula9_03_ligados.png)
 
-1. Vá em **File → New Sketch** (Arquivo → Novo).
-2. Apague o conteúdo e cole o código:
+### Passo 4 — Configurar o mqtt in
 
-```cpp
-#define LED 2   // LED azul da placa
+1. Dê **duplo clique** no nó **mqtt in**.
+2. No campo **Server**, clique no **lápis ✏️** ao lado de "Add new mqtt-broker...".
+3. Preencha:
+   - **Server:** `broker.hivemq.com`
+   - **Port:** `1883`
+4. Clique em **Add**.
+5. De volta à janela do nó, preencha:
+   - **Topic:** `senai_ssa_2026/aula8/+/sensor`
+   - **Name:** `ESP32 sensores`
+6. Clique em **Done**.
 
-void setup() {
-  Serial.begin(115200);
-  pinMode(LED, OUTPUT);
-}
+> **O que significa o `+` no tópico?** Ele é um curinga que substitui um nível do tópico. `senai_ssa_2026/aula8/+/sensor` recebe os dados de `aluno01`, `aluno02`, `aluno03`... ou seja, de **toda a turma**. Para ver só o seu ESP32, troque o `+` pelo seu número (ex.: `senai_ssa_2026/aula8/aluno07/sensor`).
 
-void loop() {
-  digitalWrite(LED, HIGH);
-  Serial.println("LED ligado");
-  delay(1000);
-  digitalWrite(LED, LOW);
-  Serial.println("LED desligado");
-  delay(1000);
-}
-```
+<!-- PRINT: passo 4 -->
+![Passo 4 - configuração do mqtt in](imagens/aula9_04_mqtt_in.png)
 
-3. Clique em **Upload** (botão com a seta →).
-4. Se a gravação travar na mensagem `Connecting........`, **segure o botão BOOT** da placa até a gravação começar e depois solte.
+### Passo 5 — Configurar o json
 
-### 1.5 Conferir
+1. Dê **duplo clique** no nó **json**.
+2. Em **Action**, escolha **Always convert to JavaScript Object**.
+3. Clique em **Done**.
 
-- O **LED azul** da placa deve piscar a cada 1 segundo.
-- Abra o **Serial Monitor** (ícone de lupa no canto superior direito).
-- No canto do Serial Monitor, selecione **115200 baud**.
-- Devem aparecer as mensagens "LED ligado" e "LED desligado".
+> **Por que essa opção?** As versões atuais do Node-RED já podem converter o JSON no próprio mqtt in. Com a opção padrão ("Convert between JSON String & Object"), o nó json faria o caminho inverso e transformaria o objeto de volta em texto. Com "Always convert to JavaScript Object", o resultado sai certo nos dois casos.
 
-> Se aparecerem caracteres estranhos no Serial Monitor, a velocidade está errada. Confirme **115200 baud**.
+<!-- PRINT: passo 5 -->
+![Passo 5 - configuração do json](imagens/aula9_05_json.png)
 
-✅ **Etapa 1 concluída quando:** o LED pisca e as mensagens aparecem.
+### Passo 6 — Configurar o debug
 
----
+1. Dê **duplo clique** no nó **debug**.
+2. Em **Name**, digite `Dados do ESP32`.
+3. Clique em **Done**.
 
-## Etapa 2 — ESP32 no Wi-Fi
+### Passo 7 — Fazer o Deploy
 
-### 2.1 Gravar o código de conexão
+1. Clique no botão vermelho **Deploy** (canto superior direito).
+2. Abaixo do nó **mqtt in** deve aparecer um quadradinho **verde** escrito **connected**.
 
-1. Crie um sketch novo (**File → New Sketch**).
-2. Cole o código abaixo e troque **NOME_DA_REDE** e **SENHA_DA_REDE** pelos dados da sua rede (maiúsculas e minúsculas fazem diferença):
+<!-- PRINT: passo 7 -->
+![Passo 7 - deploy e connected](imagens/aula9_07_deploy.png)
 
-```cpp
-#include <WiFi.h>
+> **Apareceu "disconnected" ou "connecting" em vermelho/amarelo?** O Node-RED não alcançou o broker. Confira se o Server é `broker.hivemq.com`, porta `1883`, e se o PC tem internet.
 
-const char* ssid  = "NOME_DA_REDE";
-const char* senha = "SENHA_DA_REDE";
+### Passo 8 — Ver os dados chegando
 
-void setup() {
-  Serial.begin(115200);
-  WiFi.begin(ssid, senha);
-  Serial.print("Conectando");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConectado!");
-  Serial.print("IP do ESP32: ");
-  Serial.println(WiFi.localIP());
-}
+1. Na barra lateral direita, clique no ícone de **inseto 🐞** (aba **Debug**).
+2. A cada 5 segundos chega uma mensagem de cada ESP32 ligado.
+3. Clique na setinha ao lado de uma mensagem para expandir. Você vê os campos **temperatura** e **umidade** separados, o que confirma que a mensagem é um **objeto**.
 
-void loop() { }
-```
+<!-- PRINT: passo 8 -->
+![Passo 8 - dados na aba Debug](imagens/aula9_08_debug.png)
 
-3. Faça o **Upload** e abra o **Serial Monitor** em 115200 baud.
-4. Se a tela estiver vazia, aperte o botão **EN** (ou RST) da placa para reiniciá-la.
-
-Resultado esperado:
-
-```
-Conectando.....
-Conectado!
-IP do ESP32: 192.168.0.60
-```
-
-**Anote o IP do ESP32.**
-
-### 2.2 Descobrir o IP do seu PC
-
-1. Aperte **Windows + R**, digite `cmd` e aperte Enter.
-2. No Prompt de Comando, digite:
-
-   ```
-   ipconfig
-   ```
-
-3. Procure o bloco **Adaptador de Rede sem Fio Wi-Fi** (ou **Ethernet**, se o PC estiver no cabo).
-4. Anote o **Endereço IPv4** (ex.: `192.168.0.49`).
-
-Os dois IPs devem começar iguais (ex.: `192.168.0.60` e `192.168.0.49`). Isso confirma que ESP32 e PC estão na mesma rede.
-
-> **Fica só imprimindo pontinhos?** Confira nome e senha da rede e se a rede é **2,4 GHz**. Redes com "5G" no nome não funcionam.
-
-✅ **Etapa 2 concluída quando:** o IP do ESP32 aparece no Serial Monitor.
+✅ **Etapa 3 concluída quando:** os dados do ESP32 aparecem na aba Debug.
 
 ---
 
-## Etapa 3 — Broker Mosquitto no Windows
+## Etapa 4 — Bônus: comandar o LED pelo Node-RED
 
-> **No laboratório, pule esta etapa:** o broker já está rodando no PC do professor. Faça quando for praticar em casa.
+Até agora o Node-RED só **recebe**. Agora ele também vai **enviar** comandos.
 
-O **broker** é o "carteiro" do MQTT: recebe todas as mensagens e entrega para quem assinou cada tópico.
+### Passo 9 — Montar o fluxo do LED
 
-### 3.1 Instalar
+Abaixo do fluxo anterior, arraste:
 
-1. Acesse **mosquitto.org/download**.
-2. Na seção **Windows**, baixe o arquivo **mosquitto-…-install-windows-x64.exe**.
-3. Execute o instalador com as opções padrão.
-   - Ele instala em `C:\Program Files\mosquitto`.
-   - Ele também cria um **serviço do Windows** chamado "Mosquitto Broker".
+- **2 nós inject** (seção **common**)
+- **1 nó mqtt out** (seção **network**)
 
-### 3.2 Liberar o acesso pela rede (arquivo de configuração)
+Configure cada um com duplo clique:
 
-Por padrão, o Mosquitto só aceita conexões do próprio PC. Precisamos liberar para o ESP32.
+**Primeiro inject:**
+1. Em **msg.payload**, clique na setinha do tipo e escolha **string** (ícone `az`).
+2. No valor, digite `ON`.
+3. Em **Name**, digite `LED ON`.
+4. Clique em **Done**.
 
-1. No menu Iniciar, digite **Bloco de Notas**.
-2. Clique com o **botão direito** em Bloco de Notas → **Executar como administrador**.
-3. No Bloco de Notas, vá em **Arquivo → Abrir**.
-4. Navegue até `C:\Program Files\mosquitto`.
-5. No canto inferior direito da janela, troque o filtro de "Documentos de texto (*.txt)" para **Todos os arquivos (\*.\*)**.
-6. Abra o arquivo **mosquitto.conf**.
-7. Vá até o **final do arquivo** (Ctrl + End) e acrescente estas duas linhas:
+**Segundo inject:** faça igual, com valor `OFF` e nome `LED OFF`.
 
-   ```
-   listener 1883
-   allow_anonymous true
-   ```
+**mqtt out:**
+1. Em **Server**, escolha o mesmo broker configurado no Passo 4.
+2. Em **Topic**, digite `senai_ssa_2026/aula8/alunoXX/led`, **trocando `alunoXX` pelo seu número**.
+3. Em **Name**, digite `Meu LED`.
+4. Clique em **Done**.
 
-8. Salve (Ctrl + S) e feche.
+Ligue **os dois inject** à entrada do **mqtt out**.
 
-> Se aparecer "Acesso negado" ao salvar, o Bloco de Notas não foi aberto como administrador. Repita a partir do passo 2.
+<!-- PRINT: passo 9 -->
+![Passo 9 - fluxo do LED](imagens/aula9_09_led.png)
 
-### 3.3 Liberar a porta 1883 no Firewall
+> **Atenção:** confira o número no tópico do mqtt out. Se você usar o número de um colega, vai acender o LED **dele**!
 
-1. No menu Iniciar, digite **PowerShell**.
-2. Clique com o **botão direito** → **Executar como administrador**.
-3. Cole o comando abaixo e aperte Enter:
+### Passo 10 — Testar
 
-   ```
-   New-NetFirewallRule -DisplayName "Mosquitto MQTT" -Direction Inbound -Protocol TCP -LocalPort 1883 -Action Allow
-   ```
+1. Clique em **Deploy**.
+2. Clique no **quadradinho à esquerda** do nó **LED ON**. O LED azul da sua placa acende.
+3. Clique no quadradinho do **LED OFF**. O LED apaga.
 
-4. Verifique se a rede está como **Privada**: **Configurações → Rede e Internet → Wi-Fi → (nome da sua rede)** → Tipo de perfil de rede: **Privada**.
+<!-- PRINT: passo 10 -->
+![Passo 10 - fluxo completo](imagens/aula9_10_final.png)
 
-### 3.4 Iniciar o broker
-
-Vamos rodar o broker em uma janela visível, para ver as conexões acontecendo.
-
-1. No menu Iniciar, digite **cmd**.
-2. Clique com o **botão direito** em Prompt de Comando → **Executar como administrador**.
-3. Pare o serviço automático (para ele não ocupar a porta):
-
-   ```
-   net stop mosquitto
-   ```
-
-4. Entre na pasta do Mosquitto:
-
-   ```
-   cd "C:\Program Files\mosquitto"
-   ```
-
-5. Inicie o broker usando o arquivo de configuração:
-
-   ```
-   mosquitto -c mosquitto.conf -v
-   ```
-
-6. Devem aparecer linhas terminando em:
-
-   ```
-   Opening ipv4 listen socket on port 1883.
-   mosquitto version 2.x.x running
-   ```
-
-**Deixe esta janela aberta** durante todo o teste. Ela é a **Janela 1 (broker)**.
-
-> **Erro "Only one usage of each socket address"?** O serviço ainda está rodando. Execute `net stop mosquitto` novamente.
-
-### 3.5 Testar o broker
-
-Abra **mais duas janelas** do Prompt de Comando (não precisam ser de administrador). Em **cada uma**, entre primeiro na pasta do Mosquitto:
-
-```
-cd "C:\Program Files\mosquitto"
-```
-
-**Janela 2 — quem escuta (subscriber).** Troque o IP pelo IPv4 do seu PC:
-
-```
-mosquitto_sub -h 192.168.0.49 -t "senai/#" -v
-```
-
-A janela fica "parada", esperando mensagens. Isso é normal.
-
-**Janela 3 — quem envia (publisher):**
-
-```
-mosquitto_pub -h 192.168.0.49 -t senai/teste -m "ola turma"
-```
-
-Resultado esperado na **Janela 2**:
-
-```
-senai/teste ola turma
-```
-
-**Entendendo os comandos:**
-
-| Parte do comando | Significado |
-|---|---|
-| `-h 192.168.0.49` | endereço (IP) do broker |
-| `-t senai/teste` | tópico da mensagem |
-| `-t "senai/#"` | assina **todos** os tópicos que começam com `senai/` |
-| `-m "ola turma"` | conteúdo da mensagem |
-| `-v` | mostra também o nome do tópico junto da mensagem |
-
-✅ **Etapa 3 concluída quando:** a mensagem enviada na Janela 3 aparece na Janela 2.
+✅ **Etapa 4 concluída quando:** o LED acende e apaga pelos botões do Node-RED.
 
 ---
 
-## Etapa 4 — ESP32 publicando dados via MQTT
+## Atalho: importar o fluxo pronto
 
-### 4.1 Instalar as bibliotecas
+Se quiser conferir o seu fluxo com a versão pronta (ou recuperar depois de um erro), o professor disponibiliza o arquivo `fluxo_aula9_hivemq.json`.
 
-1. Na Arduino IDE, clique no ícone de **livros** na barra lateral (Library Manager).
-2. Pesquise e instale:
-   - **PubSubClient** (autor: Nick O'Leary)
-   - **ArduinoJson** (autor: Benoit Blanchon), **versão 7**
-3. **Só se for usar o DHT11**, instale também:
-   - **DHT sensor library** (Adafruit). Quando perguntar, clique em **Install All** para instalar junto a **Adafruit Unified Sensor**.
-
-### 4.2 Montar o circuito (somente com DHT11)
-
-| DHT11 | ESP32 |
-|---|---|
-| VCC (+) | 3V3 |
-| DATA | GPIO 4 (D4) |
-| GND (−) | GND |
-
-> Se o seu DHT11 for o sensor "puro" (4 pinos, sem placa), coloque um **resistor de 10 kΩ entre DATA e 3V3**. Os módulos com placa (3 pinos) já têm esse resistor.
->
-> **Sobre o DHT11:** mede de 0 a 50 °C (precisão de ±2 °C) e umidade de 20 a 80 % (±5 %), com valores inteiros. É mais simples que o DHT22, mas atende bem ao nosso projeto. Ele só aceita uma leitura por segundo, e nosso código lê a cada 5 segundos.
-
-Sem o sensor, não monte nada: o código gera valores simulados.
-
-### 4.3 Configurar o código
-
-Crie um sketch novo, cole o código abaixo e altere **somente** a parte marcada como CONFIGURAÇÃO:
-
-1. **Nome e senha do Wi-Fi.**
-2. **IP do broker:** o IPv4 do PC onde o Mosquitto está rodando (no laboratório, o IP do professor).
-3. **Seu número de aluno:** troque `aluno01` pelo seu número (ex.: `aluno07`) nas **três** linhas indicadas. Cada ESP32 precisa de um nome único: se dois alunos usarem o mesmo, um derruba a conexão do outro.
-4. **USAR_SENSOR:** deixe `0` para dados simulados ou troque para `1` se tiver o DHT11 ligado.
-
-```cpp
-// =====================================================
-//  Aula 8 - ESP32 + MQTT
-// =====================================================
-#include <WiFi.h>
-#include <PubSubClient.h>
-#include <ArduinoJson.h>
-
-// ---------- CONFIGURACAO ----------
-const char* ssid        = "NOME_DA_REDE";
-const char* password    = "SENHA_DA_REDE";
-const char* mqtt_server = "192.168.0.49";   // IP do PC com o Mosquitto
-const int   mqtt_port   = 1883;
-
-// TROQUE "aluno01" pelo seu numero nas 3 linhas abaixo!
-const char* client_id = "ESP32_aluno01";
-const char* topic_pub = "senai/aula8/aluno01/sensor";
-const char* topic_sub = "senai/aula8/aluno01/led";
-
-#define USAR_SENSOR 0   // 0 = dados simulados | 1 = sensor DHT11 no GPIO 4
-// -----------------------------------
-
-#define LEDPIN 2   // LED azul da placa
-
-#if USAR_SENSOR
-  #include <DHT.h>
-  DHT dht(4, DHT11);
-#endif
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-unsigned long ultimoEnvio = 0;
-float tempSimulada = 25.0;
-
-// Chamada automaticamente quando chega mensagem no topico assinado
-void callback(char* topic, byte* payload, unsigned int length) {
-  String msg = "";
-  for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
-  Serial.print("Comando recebido: ");
-  Serial.println(msg);
-  if (msg == "ON")  digitalWrite(LEDPIN, HIGH);
-  if (msg == "OFF") digitalWrite(LEDPIN, LOW);
-}
-
-void conectaWiFi() {
-  WiFi.begin(ssid, password);
-  Serial.print("Conectando ao Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.print("\nWi-Fi OK - IP: ");
-  Serial.println(WiFi.localIP());
-}
-
-void conectaMQTT() {
-  while (!client.connected()) {
-    Serial.print("Conectando ao broker... ");
-    if (client.connect(client_id)) {
-      Serial.println("OK");
-      client.subscribe(topic_sub);
-    } else {
-      Serial.print("falhou, codigo = ");
-      Serial.println(client.state());   // -2 = broker inacessivel
-      delay(2000);
-    }
-  }
-}
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(LEDPIN, OUTPUT);
-  randomSeed(esp_random());
-  #if USAR_SENSOR
-    dht.begin();
-  #endif
-  conectaWiFi();
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
-}
-
-void loop() {
-  if (!client.connected()) conectaMQTT();
-  client.loop();
-
-  if (millis() - ultimoEnvio > 5000) {   // a cada 5 segundos
-    ultimoEnvio = millis();
-
-    #if USAR_SENSOR
-      float temperatura = dht.readTemperature();
-      float umidade     = dht.readHumidity();
-      if (isnan(temperatura) || isnan(umidade)) {
-        Serial.println("Falha na leitura do DHT11");
-        return;
-      }
-    #else
-      tempSimulada += random(-5, 6) / 10.0;
-      tempSimulada = constrain(tempSimulada, 20.0, 35.0);
-      float temperatura = tempSimulada;
-      float umidade     = 55.0 + random(0, 100) / 10.0;
-    #endif
-
-    JsonDocument doc;
-    doc["temperatura"] = round(temperatura * 10) / 10.0;
-    doc["umidade"]     = round(umidade * 10) / 10.0;
-    char buffer[128];
-    serializeJson(doc, buffer);
-
-    client.publish(topic_pub, buffer);
-    Serial.print("Publicado: ");
-    Serial.println(buffer);
-  }
-}
-```
-
-### 4.4 Gravar e conferir no Serial Monitor
-
-1. Faça o **Upload** e abra o **Serial Monitor** em 115200 baud.
-2. Resultado esperado:
-
-   ```
-   Conectando ao Wi-Fi....
-   Wi-Fi OK - IP: 192.168.0.60
-   Conectando ao broker... OK
-   Publicado: {"temperatura":25.3,"umidade":61.2}
-   Publicado: {"temperatura":25.1,"umidade":58.7}
-   ```
-
-   Com o DHT11 os valores chegam inteiros (ex.: `{"temperatura":26,"umidade":58}`). Isso é normal.
-
-### 4.5 Ver os dados chegando no PC
-
-Com o broker rodando (Janela 1) e a **Janela 2** assinando `senai/#`, a cada 5 segundos deve aparecer:
-
-```
-senai/aula8/aluno01/sensor {"temperatura":25.3,"umidade":61.2}
-```
-
-> **No laboratório**, o professor mostra os dados de toda a turma chegando no telão.
-
-### 4.6 Comandar o LED pelo PC
-
-Na **Janela 3**, envie (troque o IP e o número do aluno):
-
-```
-mosquitto_pub -h 192.168.0.49 -t senai/aula8/aluno01/led -m ON
-```
-
-O **LED azul** da placa acende e o Serial Monitor mostra `Comando recebido: ON`. Para apagar:
-
-```
-mosquitto_pub -h 192.168.0.49 -t senai/aula8/aluno01/led -m OFF
-```
-
-✅ **Etapa 4 concluída quando:** os dados chegam a cada 5 segundos e o LED responde a ON/OFF.
+1. No Node-RED, clique no menu **☰** (canto superior direito) → **Import**.
+2. Clique em **select a file to import** e escolha o arquivo.
+3. Clique em **Import** e clique na área de trabalho para soltar os nós.
+4. Dê duplo clique no **mqtt out** e troque `aluno01` pelo seu número.
+5. Clique em **Deploy**.
 
 ---
 
@@ -490,28 +252,24 @@ mosquitto_pub -h 192.168.0.49 -t senai/aula8/aluno01/led -m OFF
 
 | Sintoma | Causa provável | Solução |
 |---|---|---|
-| Porta COM não aparece | Cabo só de carga ou falta de driver | Troque o cabo; instale o driver CP2102 ou CH340 (Etapa 1.3) |
-| Upload trava em `Connecting....` | Placa não entrou em modo de gravação | Segure o botão **BOOT** até começar a gravar |
-| Caracteres estranhos no Serial Monitor | Velocidade errada | Selecione **115200 baud** |
-| Serial Monitor vazio | Programa já rodou antes de abrir o monitor | Aperte o botão **EN/RST** da placa |
-| Só imprime pontinhos no Wi-Fi | Senha errada ou rede 5 GHz | Confira nome/senha e use rede **2,4 GHz** |
-| `falhou, codigo = -2` | ESP32 não alcança o broker | Confira o IP do broker, se a Janela 1 está rodando e a regra do firewall (Etapa 3.3) |
-| ESP32 conecta e desconecta sem parar | Dois ESP32 com o mesmo `client_id` | Use o **seu** número de aluno no código |
-| `Only one usage of each socket address` | Serviço do Mosquitto ocupando a porta | Rode `net stop mosquitto` como administrador |
-| `'mosquitto_sub' não é reconhecido` | Prompt fora da pasta do Mosquitto | Rode antes `cd "C:\Program Files\mosquitto"` |
-| `Falha na leitura do DHT11` | Fiação ou resistor de pull-up | Confira VCC no 3V3, DATA no GPIO 4 e o resistor de 10 kΩ |
-| LED não responde ao comando | Tópico ou mensagem diferente | Confira o tópico `.../led` com seu número e envie `ON`/`OFF` em maiúsculas |
+| `'node' não é reconhecido` | Prompt aberto antes de instalar o Node.js | Feche e abra um **novo** Prompt de Comando |
+| `'node-red' não é reconhecido` | Prompt aberto antes de instalar o Node-RED | Feche e abra um **novo** Prompt de Comando |
+| "A execução de scripts foi desabilitada" | Comando rodado no PowerShell | Use o **Prompt de Comando (cmd)** |
+| Página localhost:1880 não abre | Janela do Node-RED foi fechada | Rode `node-red` novamente e deixe a janela aberta |
+| `Error: port 1880 in use` | Node-RED já está rodando em outra janela | Use a janela que já está aberta ou feche-a e rode de novo |
+| mqtt in mostra "disconnected" | Servidor errado ou rede bloqueando | Confira `broker.hivemq.com` e porta `1883` no Passo 4; na escola, avise o professor |
+| Nada aparece no Debug | Esqueceu o Deploy, ESP32 desligado ou tópico errado | Clique em **Deploy**; confira o Serial Monitor e o tópico `senai_ssa_2026/aula8/+/sensor` |
+| Debug mostra texto `"{\"temperatura\"..."` | Nó json na opção errada | No json, use **Always convert to JavaScript Object** |
+| LED não responde | Número do aluno errado no tópico do mqtt out | Confira `senai_ssa_2026/aula8/alunoXX/led` com o **seu** número |
 
 ---
 
 ## Checklist final
 
-- [ ] LED da placa piscou com o programa Blink
-- [ ] IP do ESP32 apareceu no Serial Monitor
-- [ ] IP do PC anotado com `ipconfig`
-- [ ] Broker testado com `mosquitto_sub` e `mosquitto_pub` (em casa)
-- [ ] Meu número de aluno trocado nas 3 linhas do código
-- [ ] Dados JSON chegando a cada 5 segundos
-- [ ] LED acendendo e apagando com ON/OFF
+- [ ] `node --version` mostra versão 18 ou maior
+- [ ] Node-RED aberto em http://localhost:1880
+- [ ] mqtt in com **connected** em verde
+- [ ] Dados chegando na aba Debug com temperatura e umidade separadas
+- [ ] LED acendendo e apagando pelos botões LED ON e LED OFF
 
-**Próxima aula:** vamos receber esses dados no **Node-RED** e guardá-los no banco de dados **InfluxDB**. Traga o ESP32 com o código desta aula funcionando!
+**Próximo passo:** trocar o nó **debug** por um nó que **grava os dados no banco InfluxDB**, para guardar o histórico e depois criar gráficos no Grafana.
