@@ -109,17 +109,21 @@ Faça as tarefas em ordem e teste cada uma no circuito antes de seguir.
 
 ## Entrega e avaliação
 
-Entregue o arquivo `.ino` final e demonstre o circuito funcionando para o professor. Cada função deve ter um comentário acima dela dizendo o que recebe e o que retorna.
+A atividade vale **3,0 pontos** e deve ser entregue no **Google Classroom**, com os três itens abaixo.
+
+1. **Vídeo do circuito funcionando.** Gire o potenciômetro passando pelas três faixas (AQUECENDO, IDEAL e ALERTA). O LCD precisa estar legível no vídeo e o som do buzzer precisa ser ouvido no alerta.
+2. **Foto do esquema elétrico desenhado à mão.** O desenho deve mostrar todos os componentes e as ligações com o número de cada pino do Arduino. A foto precisa estar nítida e com o papel inteiro aparecendo.
+3. **Código final.** O arquivo `.ino`, com um comentário acima de cada função dizendo o que ela recebe e o que retorna.
 
 | Critério | Pontos |
 | --- | --- |
-| Tarefas 1 e 2: circuito montado e leitura do sensor | 2,0 |
-| Tarefa 3: `verificarStatus()` retornando as três faixas | 2,0 |
-| Tarefa 4: LCD mostrando temperatura e status | 2,0 |
-| Tarefa 5: alarme com LED e buzzer | 2,0 |
-| Código organizado, comentado e com `loop()` curto | 2,0 |
-| **Total** | **10,0** |
-| Desafios extras (bônus) | até +1,0 |
+| Vídeo: sistema funcionando nas três faixas, com LCD, LED e buzzer | 1,0 |
+| Esquema elétrico à mão: completo e com os pinos identificados | 0,5 |
+| Código: as cinco funções implementadas conforme a estrutura sugerida | 1,0 |
+| Código: organizado, comentado e com `loop()` curto | 0,5 |
+| **Total** | **3,0** |
+
+Os desafios extras são opcionais e podem compensar pontos perdidos em outros critérios, sem ultrapassar a nota máxima de 3,0.
 
 ## Dicas
 
