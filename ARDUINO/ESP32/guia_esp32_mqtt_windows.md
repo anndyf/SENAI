@@ -282,7 +282,7 @@ Crie um sketch novo, cole o código abaixo e altere **somente** a parte marcada 
 
 ```cpp
 // =====================================================
-//  Aula 8 - ESP32 + MQTT com potenciometro
+//  Aula 8 - ESP32 + MQTT com potenciometro e LED Externo
 //  SENAI Alagoinhas - Sistemas Eletronicos e Microcontrolados
 // =====================================================
 #include <WiFi.h>
@@ -302,7 +302,7 @@ const char* topic_sub = "senai_alagoinhas_2026/aula8/aluno01/led";
 // -----------------------------------
 
 #define POTPIN   34      // cursor do potenciometro (ADC1)
-#define LEDPIN   2       // LED azul da placa
+#define LEDPIN   23      // LED externo no GPIO 23
 #define AMOSTRAS 20      // leituras para a media (filtro)
 #define TEMP_MAX 50.0    // escala simulada: 0 a 50 graus C
 
