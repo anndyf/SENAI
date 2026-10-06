@@ -12,7 +12,7 @@ Este guia mostra, passo a passo, como programar o ESP32, conectá-lo ao Wi-Fi e 
 - **Cabo USB de dados** (atenção: muitos cabos só carregam e não transmitem dados)
 - Computador com **Windows 10 ou 11**
 - Rede **Wi-Fi 2,4 GHz** (o ESP32 **não** funciona em redes 5 GHz)
-- Sensor **DHT11** (opcional: sem ele, o código gera dados simulados)
+- **Potenciômetro** de 10 kΩ (linear, 3 terminais) e 3 jumpers
 
 ## Mapa das etapas
 
@@ -21,7 +21,7 @@ Este guia mostra, passo a passo, como programar o ESP32, conectá-lo ao Wi-Fi e 
 | 1 | Instala a Arduino IDE e grava o primeiro programa | LED azul da placa piscando |
 | 2 | Conecta o ESP32 ao Wi-Fi | IP do ESP32 aparece no Serial Monitor |
 | 3 | Conhece o broker HiveMQ e o cliente pelo navegador | Mensagem de teste enviada e recebida no navegador |
-| 4 | ESP32 publica temperatura e umidade via MQTT | Dados chegando a cada 5 segundos e LED comandado pelo PC |
+| 4 | ESP32 lê o potenciômetro, condiciona o sinal e publica via MQTT | Dados chegando a cada 5 segundos e LED comandado pelo PC |
 
 > **Não é preciso instalar broker:** usamos o **HiveMQ**, um broker público na internet. Em casa ou no laboratório, o endereço é sempre o mesmo: `broker.hivemq.com`.
 
@@ -182,10 +182,10 @@ O **broker** é o "carteiro" do MQTT: recebe todas as mensagens e entrega para q
 
 ### 3.1 Os tópicos da turma
 
-O broker é público e compartilhado com o mundo inteiro. Por isso, todos os tópicos da turma começam com um **prefixo único**: `senai_ssa_2026`.
+O broker é público e compartilhado com o mundo inteiro. Por isso, todos os tópicos da turma começam com um **prefixo único**: `senai_alagoinhas_2026`.
 
 ```
-senai_ssa_2026/
+senai_alagoinhas_2026/
 └── aula8/
     ├── aluno01/
     │   ├── sensor   ← o ESP32 do aluno 01 publica aqui
@@ -211,14 +211,14 @@ Não é preciso instalar nada no PC: a HiveMQ tem um cliente MQTT que roda no na
 ### 3.3 Testar o broker
 
 1. Em **Subscriptions**, clique em **Add New Topic Subscription**.
-2. Digite `senai_ssa_2026/#` e clique em **Subscribe**.
+2. Digite `senai_alagoinhas_2026/#` e clique em **Subscribe**.
    - O `#` significa "todos os tópicos abaixo deste". Você vai ver tudo o que a turma publicar.
 3. Em **Publish**, preencha:
-   - **Topic:** `senai_ssa_2026/teste`
+   - **Topic:** `senai_alagoinhas_2026/teste`
    - **Message:** `ola turma`
 4. Clique em **Publish**.
 
-Resultado esperado: a mensagem aparece em **Messages**, com o tópico `senai_ssa_2026/teste`.
+Resultado esperado: a mensagem aparece em **Messages**, com o tópico `senai_alagoinhas_2026/teste`.
 
 > Você publicou e recebeu a própria mensagem. É exatamente isso que o ESP32 vai fazer na próxima etapa.
 
@@ -234,35 +234,56 @@ Resultado esperado: a mensagem aparece em **Messages**, com o tópico `senai_ssa
 2. Pesquise e instale:
    - **PubSubClient** (autor: Nick O'Leary)
    - **ArduinoJson** (autor: Benoit Blanchon), **versão 7**
-3. **Só se for usar o DHT11**, instale também:
-   - **DHT sensor library** (Adafruit). Quando perguntar, clique em **Install All** para instalar junto a **Adafruit Unified Sensor**.
 
-### 4.2 Montar o circuito (somente com DHT11)
+A leitura do potenciômetro usa funções que já vêm com o ESP32. Não precisa de biblioteca extra.
 
-| DHT11 | ESP32 |
+### 4.2 Montar o circuito
+
+O potenciômetro funciona como um **divisor de tensão**: girando o eixo, a tensão no terminal do meio varia de 0 V a 3,3 V. O ESP32 lê essa tensão pelo conversor analógico-digital (ADC).
+
+| Potenciômetro | ESP32 |
 |---|---|
-| VCC (+) | 3V3 |
-| DATA | GPIO 4 (D4) |
-| GND (−) | GND |
+| Terminal da ponta 1 | 3V3 |
+| Terminal do **meio** (cursor) | **GPIO 34** (D34) |
+| Terminal da ponta 2 | GND |
 
-> Se o seu DHT11 for o sensor "puro" (4 pinos, sem placa), coloque um **resistor de 10 kΩ entre DATA e 3V3**. Os módulos com placa (3 pinos) já têm esse resistor.
->
-> **Sobre o DHT11:** mede de 0 a 50 °C (precisão de ±2 °C) e umidade de 20 a 80 % (±5 %), com valores inteiros. É mais simples que o DHT22, mas atende bem ao nosso projeto. Ele só aceita uma leitura por segundo, e nosso código lê a cada 5 segundos.
+> **Atenção:**
+> - Ligue a ponta no **3V3**, nunca no **VIN/5V**. Os pinos do ESP32 não suportam 5 V.
+> - Use o **GPIO 34**. Ele pertence ao **ADC1**, que funciona junto com o Wi-Fi. Os pinos do ADC2 (ex.: GPIO 4, 12–15, 25–27) **não leem** valores analógicos com o Wi-Fi ligado.
+> - Se o valor diminuir quando você gira para a direita, basta inverter os fios das duas pontas.
 
-Sem o sensor, não monte nada: o código gera valores simulados.
+### 4.3 Entendendo o condicionamento do sinal
 
-### 4.3 Configurar o código
+O ESP32 não "entende" graus nem porcentagens: ele só enxerga um número. **Condicionar o sinal** é transformar esse número em uma grandeza útil. O código faz isso em três etapas:
+
+| Etapa | O que acontece | Faixa |
+|---|---|---|
+| 1. Leitura bruta | O ADC de 12 bits converte a tensão em número | 0 a 4095 |
+| 2. Filtro (média) | O código faz a média de 20 leituras para reduzir o ruído | 0 a 4095 |
+| 3. Conversão | O valor é convertido em tensão e em uma escala de engenharia | 0 a 3,3 V e 0 a 50 °C |
+
+Nesta prática, o potenciômetro **simula um sensor de temperatura** com faixa de 0 a 50 °C. Girar o eixo equivale a "esquentar" ou "esfriar" o ambiente. A conversão é uma regra de três:
+
+```
+temperatura = bruto × 50 ÷ 4095
+```
+
+Exemplos: bruto `0` → 0 °C; bruto `2048` → 25 °C; bruto `4095` → 50 °C.
+
+> **Curiosidade:** o ADC do ESP32 não é perfeitamente linear nas pontas. Perto de 0 V e de 3,3 V os valores "grudam" em 0 ou 4095. Por isso, usamos `analogReadMilliVolts()` para a tensão, que já aplica a calibração de fábrica do chip.
+
+### 4.4 Configurar e gravar o código
 
 Crie um sketch novo, cole o código abaixo e altere **somente** a parte marcada como CONFIGURAÇÃO:
 
 1. **Nome e senha do Wi-Fi.**
 2. **Broker:** já está configurado como `broker.hivemq.com`. Não precisa mudar.
 3. **Seu número de aluno:** troque `aluno01` pelo seu número (ex.: `aluno07`) nas **três** linhas indicadas. Cada ESP32 precisa de um nome único: se dois dispositivos usarem o mesmo, um derruba a conexão do outro.
-4. **USAR_SENSOR:** deixe `0` para dados simulados ou troque para `1` se tiver o DHT11 ligado.
 
 ```cpp
 // =====================================================
-//  Aula 8 - ESP32 + MQTT
+//  Aula 8 - ESP32 + MQTT com potenciometro
+//  SENAI Alagoinhas - Sistemas Eletronicos e Microcontrolados
 // =====================================================
 #include <WiFi.h>
 #include <PubSubClient.h>
@@ -271,28 +292,23 @@ Crie um sketch novo, cole o código abaixo e altere **somente** a parte marcada 
 // ---------- CONFIGURACAO ----------
 const char* ssid        = "NOME_DA_REDE";
 const char* password    = "SENHA_DA_REDE";
-const char* mqtt_server = "broker.hivemq.com";   // broker público
+const char* mqtt_server = "broker.hivemq.com";   // broker publico
 const int   mqtt_port   = 1883;
 
 // TROQUE "aluno01" pelo seu numero nas 3 linhas abaixo!
-const char* client_id = "senai_ssa_2026_aluno01";
-const char* topic_pub = "senai_ssa_2026/aula8/aluno01/sensor";
-const char* topic_sub = "senai_ssa_2026/aula8/aluno01/led";
-
-#define USAR_SENSOR 0   // 0 = dados simulados | 1 = sensor DHT11 no GPIO 4
+const char* client_id = "senai_alagoinhas_2026_aluno01";
+const char* topic_pub = "senai_alagoinhas_2026/aula8/aluno01/sensor";
+const char* topic_sub = "senai_alagoinhas_2026/aula8/aluno01/led";
 // -----------------------------------
 
-#define LEDPIN 2   // LED azul da placa
-
-#if USAR_SENSOR
-  #include <DHT.h>
-  DHT dht(4, DHT11);
-#endif
+#define POTPIN   34      // cursor do potenciometro (ADC1)
+#define LEDPIN   2       // LED azul da placa
+#define AMOSTRAS 20      // leituras para a media (filtro)
+#define TEMP_MAX 50.0    // escala simulada: 0 a 50 graus C
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 unsigned long ultimoEnvio = 0;
-float tempSimulada = 25.0;
 
 // Chamada automaticamente quando chega mensagem no topico assinado
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -332,39 +348,39 @@ void conectaMQTT() {
 void setup() {
   Serial.begin(115200);
   pinMode(LEDPIN, OUTPUT);
-  randomSeed(esp_random());
-  #if USAR_SENSOR
-    dht.begin();
-  #endif
+  analogReadResolution(12);         // ADC de 12 bits: 0 a 4095
+  analogSetAttenuation(ADC_11db);   // faixa de leitura de 0 a ~3,3 V
   conectaWiFi();
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 }
 
 void loop() {
+  if (WiFi.status() != WL_CONNECTED) conectaWiFi();   // reconecta se o Wi-Fi cair
   if (!client.connected()) conectaMQTT();
   client.loop();
 
   if (millis() - ultimoEnvio > 5000) {   // a cada 5 segundos
     ultimoEnvio = millis();
 
-    #if USAR_SENSOR
-      float temperatura = dht.readTemperature();
-      float umidade     = dht.readHumidity();
-      if (isnan(temperatura) || isnan(umidade)) {
-        Serial.println("Falha na leitura do DHT11");
-        return;
-      }
-    #else
-      tempSimulada += random(-5, 6) / 10.0;
-      tempSimulada = constrain(tempSimulada, 20.0, 35.0);
-      float temperatura = tempSimulada;
-      float umidade     = 55.0 + random(0, 100) / 10.0;
-    #endif
+    // 1) LEITURA + 2) FILTRO: media de varias amostras
+    long somaBruto = 0;
+    long somaMv    = 0;
+    for (int i = 0; i < AMOSTRAS; i++) {
+      somaBruto += analogRead(POTPIN);
+      somaMv    += analogReadMilliVolts(POTPIN);
+      delay(2);
+    }
+    int   bruto  = somaBruto / AMOSTRAS;             // 0 a 4095
+    float tensao = (somaMv / AMOSTRAS) / 1000.0;     // em volts
+
+    // 3) CONVERSAO para a escala de engenharia (0 a 50 graus C)
+    float temperatura = bruto * TEMP_MAX / 4095.0;
 
     JsonDocument doc;
+    doc["bruto"]       = bruto;
+    doc["tensao"]      = round(tensao * 100) / 100.0;
     doc["temperatura"] = round(temperatura * 10) / 10.0;
-    doc["umidade"]     = round(umidade * 10) / 10.0;
     char buffer[128];
     serializeJson(doc, buffer);
 
@@ -375,7 +391,7 @@ void loop() {
 }
 ```
 
-### 4.4 Gravar e conferir no Serial Monitor
+### 4.5 Conferir no Serial Monitor
 
 1. Faça o **Upload** e abra o **Serial Monitor** em 115200 baud.
 2. Resultado esperado:
@@ -384,28 +400,28 @@ void loop() {
    Conectando ao Wi-Fi....
    Wi-Fi OK - IP: 192.168.0.60
    Conectando ao broker... OK
-   Publicado: {"temperatura":25.3,"umidade":61.2}
-   Publicado: {"temperatura":25.1,"umidade":58.7}
+   Publicado: {"bruto":2048,"tensao":1.65,"temperatura":25}
+   Publicado: {"bruto":3120,"tensao":2.52,"temperatura":38.1}
    ```
 
-   Com o DHT11 os valores chegam inteiros (ex.: `{"temperatura":26,"umidade":58}`). Isso é normal.
+3. **Gire o potenciômetro** e observe os três valores mudarem juntos. Leve até as duas pontas e confira se a temperatura vai de 0 a 50.
 
-### 4.5 Ver os dados chegando no navegador
+### 4.6 Ver os dados chegando no navegador
 
-No cliente web da HiveMQ (Etapa 3.2), com a assinatura `senai_ssa_2026/#` ativa, a cada 5 segundos aparece em **Messages**:
+No cliente web da HiveMQ (Etapa 3.2), com a assinatura `senai_alagoinhas_2026/#` ativa, a cada 5 segundos aparece em **Messages**:
 
 ```
-Topic: senai_ssa_2026/aula8/aluno01/sensor
-{"temperatura":25.3,"umidade":61.2}
+Topic: senai_alagoinhas_2026/aula8/aluno01/sensor
+{"bruto":2048,"tensao":1.65,"temperatura":25}
 ```
 
-> Para ver **só o seu** ESP32, assine `senai_ssa_2026/aula8/alunoXX/sensor`, trocando `XX` pelo seu número.
+> Para ver **só o seu** ESP32, assine `senai_alagoinhas_2026/aula8/alunoXX/sensor`, trocando `XX` pelo seu número.
 
-### 4.6 Comandar o LED pelo navegador
+### 4.7 Comandar o LED pelo navegador
 
 No cliente web da HiveMQ, em **Publish**:
 
-1. **Topic:** `senai_ssa_2026/aula8/alunoXX/led` (com o **seu** número)
+1. **Topic:** `senai_alagoinhas_2026/aula8/alunoXX/led` (com o **seu** número)
 2. **Message:** `ON`
 3. Clique em **Publish**.
 
@@ -429,19 +445,13 @@ O **LED azul** da placa acende e o Serial Monitor mostra `Comando recebido: ON`.
 | `falhou, codigo = -2` | ESP32 não alcança o broker | Confira `broker.hivemq.com` no código e se a rede tem internet. Na escola, a porta 1883 pode estar bloqueada: avise o professor |
 | ESP32 conecta e desconecta sem parar | Dois ESP32 com o mesmo `client_id` | Use o **seu** número de aluno no código |
 | Cliente web não conecta | Rede bloqueando o site ou a conexão | Recarregue a página e clique em **Connect** de novo; tente outro navegador |
-| Nada chega em Messages | Assinatura não criada ou tópico diferente | Confira a assinatura `senai_ssa_2026/#` e o prefixo no código |
-| `Falha na leitura do DHT11` | Fiação ou resistor de pull-up | Confira VCC no 3V3, DATA no GPIO 4 e o resistor de 10 kΩ |
-| LED não responde ao comando | Tópico ou mensagem diferente | Confira `senai_ssa_2026/aula8/alunoXX/led` com seu número e envie `ON`/`OFF` em maiúsculas |
+| Nada chega em Messages | Assinatura não criada ou tópico diferente | Confira a assinatura `senai_alagoinhas_2026/#` e o prefixo no código |
+| Valor fica sempre em 0 ou 4095 | Cursor desligado ou pino errado | Confira o terminal do **meio** no GPIO 34 e as pontas no 3V3 e GND |
+| Valor não muda com o Wi-Fi ligado | Potenciômetro em pino do ADC2 | Use o **GPIO 34** (ADC1) |
+| Valor diminui ao girar para a direita | Pontas invertidas | Troque os fios do 3V3 e do GND entre si |
+| Valor oscila sem mexer no eixo | Ruído ou mau contato na protoboard | Firme os jumpers; o código já faz média de 20 leituras |
+| LED não responde ao comando | Tópico ou mensagem diferente | Confira `senai_alagoinhas_2026/aula8/alunoXX/led` com seu número e envie `ON`/`OFF` em maiúsculas |
 
----
 
-## Checklist final
-
-- [ ] LED da placa piscou com o programa Blink
-- [ ] IP do ESP32 apareceu no Serial Monitor
-- [ ] Cliente web da HiveMQ conectado e mensagem de teste recebida
-- [ ] Meu número de aluno trocado nas 3 linhas do código
-- [ ] Dados JSON chegando a cada 5 segundos
-- [ ] LED acendendo e apagando com ON/OFF
 
 **Próxima aula:** vamos receber esses dados no **Node-RED** e guardá-los no banco de dados **InfluxDB**. Traga o ESP32 com o código desta aula funcionando!
