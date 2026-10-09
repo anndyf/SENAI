@@ -240,6 +240,8 @@ Só avance quando os **dois** LEDs responderem.
    ```
 5. Abra no navegador: **http://localhost:1880**
 
+> Na primeira abertura aparecem o aviso *Enable Update Notifications* e o tour *Welcome to Node-RED 5.0!*. Pode fechar os dois. Nesta versão a interface está em **português**: o botão Deploy se chama **implementar**, e os campos aparecem como Servidor, Tópico e Saída. Este guia usa os nomes em português, com o nome em inglês entre parênteses quando ajuda.
+
 > Deixe a janela do cmd aberta enquanto usa o Node-RED. Fechou, parou.
 
 ---
@@ -247,13 +249,14 @@ Só avance quando os **dois** LEDs responderem.
 ## Etapa 3 — Receber os dados do ESP32
 
 1. Arraste um nó **mqtt in** para a área de trabalho e dê duplo clique:
-   - **Server:** lápis → Server `broker.hivemq.com`, Port `1883` → Add
-   - **Topic:** `senai_alagoinhas_2026/aula8/aluno01/sensor` (com o **seu** número)
-   - **QoS:** 0
-   - **Output:** *a parsed JSON object*
-2. Arraste um nó **debug** e ligue o mqtt in nele.
-3. **Deploy** (botão vermelho). O nó mostra *connected*.
-4. Abra a aba de debug (ícone de inseto): a cada 5 s chega `{bruto, tensao, temperatura}`.
+   - **Servidor:** lápis → Servidor `broker.hivemq.com`, Porta `1883` → **Adicionar**
+   - **Tópico:** `senai_alagoinhas_2026/aula8/aluno01/sensor` (com o **seu** número)
+   - **QoS:** o padrão vem como **2**; troque para **0**
+   - **Saída:** *um objeto JSON analisado sintaticamente* (em inglês, *a parsed JSON object*)
+   - **Nome:** `sensor do aluno01` → **Feito**
+2. Arraste também um nó **function** (será configurado na Etapa 4) e um nó **debug**. Para este primeiro teste, ligue o **mqtt in direto no debug**; na Etapa 4 o fluxo passa a ser mqtt in → function → debug.
+3. Clique em **implementar** (botão vermelho). Deve aparecer *Implementado com sucesso* e uma bolinha verde *conectado* embaixo do mqtt in.
+4. Abra a aba de depuração (ícone de inseto): a cada 5 s chega `{bruto, tensao, temperatura}`.
 
 Gire o potenciômetro e veja a temperatura mudar. 
 
@@ -263,11 +266,11 @@ Gire o potenciômetro e veja a temperatura mudar.
 
 ### 4.1 Criar conta e bucket
 
-1. Crie a conta gratuita em **influxdata.com/get-influxdb** (plano Free).
+1. Crie a conta gratuita em **influxdata.com/get-influxdb** (plano Free). No primeiro acesso aparece a tela *Welcome to InfluxData*, que pede **Account** e **Organization** (ex.: `SENAI-ALA`), a região e o aceite dos termos. Na escolha de plano, o Free é o botão **Keep**.
 2. No menu, abra **Load Data → Buckets → Create Bucket**, nome **`aula_mqtt`**.
 3. Em **API Tokens → Generate API Token → Custom API Token**, dê permissão **somente de escrita (Write)** no bucket `aula_mqtt`. Copie o token (aparece **uma vez só**).
 
-Anote os 4 dados que o Node-RED vai pedir:
+A retenção padrão do bucket é de **30 dias**. Anote os 4 dados que o Node-RED vai pedir:
 
 | Dado | Onde achar |
 |---|---|
@@ -280,11 +283,11 @@ Anote os 4 dados que o Node-RED vai pedir:
 
 ### 4.2 Instalar o nó do InfluxDB
 
-No Node-RED: menu ☰ → **Manage palette → Install** → procure **`node-red-contrib-influxdb`** → Install.
+No Node-RED: menu ☰ → **Gerenciar paleta** → aba **Instalar** → procure **`node-red-contrib-influxdb`** → **Instalar**. Na busca podem aparecer outros pacotes parecidos (como `node-red-contrib-influxdb3` e `@rcomanne/...`); use o `node-red-contrib-influxdb`, versão **0.7.0**, que aparece como instalado na aba **Nós**.
 
 ### 4.3 Função "prepara dados"
 
-Arraste um nó **function**, nome **prepara dados**, **Outputs: 2**, e cole:
+Use o nó **function** da Etapa 3 (ou arraste outro). Em **Nome**, digite **prepara dados**. Na aba **Configurar**, mude **Saídas** para **2**. Na aba **Na mensagem**, cole o código:
 
 ```javascript
 // A mensagem do ESP32 ja chega como objeto:
@@ -315,27 +318,28 @@ var temp = { payload: d.temperatura };
 return [influx, temp];
 ```
 
-Ligue: `mqtt in` → `prepara dados`.
+Ligue: `mqtt in` → `prepara dados`. Ligue também um **debug** direto no mqtt in (nome "chegou do broker") para ver o dado bruto.
 
 ### 4.4 Nó influxdb out
 
-Arraste **influxdb out** (categoria *storage*) e ligue à **saída 1** da função. Configure:
+Arraste **influxdb out** (categoria **armazenar**) e ligue à **saída 1** da função. Configure:
 
-- **Server:** lápis → **Version: 2.0**, **URL**, marque **Enable secure connection (TLS)**, **Token**
-- **Organisation:** a sua · **Bucket:** `aula_mqtt`
+- **Servidor:** lápis → **Version: 2.0**, **URL** (`https://...` da sua região), **Token**. Com a Version 2.0 **não existe** o campo *Enable secure connection (TLS)*: o TLS vem do `https://` da URL, e a opção *Verify server certificate* já vem marcada. Cuidado: a URL vem preenchida com `http://localhost:8086`, e Organization e Bucket vêm com `organisation` e `bucket`; troque os três.
+- **Organization:** a sua · **Bucket:** `aula_mqtt`
 - **Measurement:** `sensor`
+- **Nome:** `gravar no Influx`
 
-Adicione também um **debug** (nome "vai para o Influx") na saída 1. **Deploy**.
+Adicione também um **debug** (nome "vai para o Influx") na saída 1. Clique em **implementar**. O nó influxdb out não deve mostrar erro.
 
 ### 4.5 Conferir no banco
 
-No InfluxDB Cloud → **Data Explorer** (modo SQL):
+No InfluxDB Cloud → **Data Explorer** → em **Select bucket**, escolha `aula_mqtt`. O **SQL Sync** preenche uma consulta sozinho; desligue-o e digite a sua (se aparecer o aviso *Composition has ended*, ignore). Use SQL:
 
 ```sql
 SELECT * FROM sensor ORDER BY time DESC LIMIT 20
 ```
 
-Devem aparecer as linhas com `aluno`, `bruto`, `tensao`, `temperatura`.
+Devem aparecer as linhas com `aluno`, `bruto`, `tensao`, `temperatura`. A coluna `time` vem em **UTC** (3 horas à frente de Salvador).
 
 ### Entendendo o fluxo
 
@@ -360,20 +364,28 @@ Na forma de texto (*line protocol*): `sensor,aluno=aluno01 bruto=2048,tensao=1.6
 
 ### 5.1 Instalar o dashboard
 
-Manage palette → Install → **`node-red-dashboard`**.
+Menu ☰ → **Gerenciar paleta** → **Instalar** → busque **`node-red-dashboard`** → **Instalar** (e confirme na janela).
 
-> ℹ️ Este pacote está marcado como *descontinuado* (sem manutenção), mas ainda funciona bem para a aula.
+> ℹ️ Este pacote aparece com a etiqueta ***deprecated*** (sem manutenção), mas ainda funciona bem para a aula. Logo abaixo na busca vem o `@flowfuse/node-red-dashboard`: é **outro pacote** (o Dashboard 2.0), não instale esse.
 
 ### 5.2 Gauge, gráfico e estado
+
+**Primeiro crie a aba e o grupo** (é aqui que a turma mais trava). No primeiro widget (o ui_gauge), o campo **Group** vem como *nenhum*:
+
+1. Clique no **+** ao lado de **Group**, depois no **+** ao lado de **Tab**. Nome da aba: **`Aula MQTT`** → Adicionar.
+2. De volta ao grupo: Nome **`ESP32`**, Tab `Aula MQTT` → Adicionar.
+3. Nos outros widgets (ui_chart e ui_text), **escolha esse grupo** no campo Group. Se ficar *nenhum*, o widget não aparece no painel.
 
 Ligue a **saída 2** de "prepara dados" em:
 
 - **ui_gauge** — Label `Temperatura`, Units `°C`, Range **min 0 / max 50**, Sectors: `0`, **`30`**, **`35`**, `50` (verde até 30, amarelo 30–35, vermelho acima de 35)
-- **ui_chart** — Label `Temperatura`, X-axis últimos 10 minutos
+- **ui_chart** — Label `Temperatura`, X-axis últimos **10 minutes** (o padrão vem como *1 hours*), **Y-axis min 0 / max 50**
+
+No `/ui`, a ordem dos widgets pode aparecer como gráfico → Estado → gauge; isso não afeta o funcionamento.
 
 ### 5.3 Função "regra do alarme"
 
-Arraste outro **function**, nome **regra do alarme**, **Outputs: 3**, e cole:
+Arraste outro **function**. Em **Nome**, digite **regra do alarme**; na aba **Configurar**, **Saídas: 3**; na aba **Na mensagem**, cole:
 
 ```javascript
 // ===== REGRA DO ALARME =====
@@ -400,11 +412,11 @@ Ligue a **saída 2** de "prepara dados" na entrada desta função.
 
 | Saída | Liga em | Configuração |
 |---|---|---|
-| 1 (verde) | **mqtt out** | Topic `senai_alagoinhas_2026/aula8/aluno01/led_verde`, QoS 0, Retain false, Server `broker.hivemq.com` |
-| 2 (vermelho) | **mqtt out** | Topic `senai_alagoinhas_2026/aula8/aluno01/led_vermelho`, igual ao anterior |
-| 3 (estado) | **ui_text** | Label `Estado` |
+| 1 (verde) | **mqtt out** | Tópico `senai_alagoinhas_2026/aula8/aluno01/led_verde`, QoS 0, **Reter** = *falso*, Servidor `broker.hivemq.com`, Nome `LED verde` |
+| 2 (vermelho) | **mqtt out** | Tópico `senai_alagoinhas_2026/aula8/aluno01/led_vermelho`, igual ao anterior, Nome `LED vermelho` |
+| 3 (estado) | **ui_text** | Group `ESP32`, Label `Estado`, Value format `{{msg.payload}}` |
 
-**Deploy** e abra o dashboard em **http://localhost:1880/ui**.
+Clique em **implementar** e abra o dashboard em **http://localhost:1880/ui**.
 
 ### 5.5 Testando a regra
 
@@ -419,7 +431,7 @@ O LED muda na próxima leitura (até 5 s), pois o ESP32 publica a cada 5 s.
 ### 5.6 Diagrama completo do fluxo
 
 ```
-[mqtt in sensor] ─┬─► [debug]
+[mqtt in sensor] ─┬─► [debug "chegou do broker"]
                   └─► [prepara dados] ─┬─ saída 1 ─┬─► [influxdb out]
                                        │           └─► [debug "vai para o Influx"]
                                        └─ saída 2 ─┬─► [gauge]
@@ -457,6 +469,8 @@ O LED muda na próxima leitura (até 5 s), pois o ESP32 publica a cada 5 s.
 ### 6.1 Importar o fluxo pronto
 
 Menu ☰ → **Import** → cole o JSON abaixo → **Import**.
+
+> Observação: no fluxo importado, a ordem dos widgets em `/ui` pode sair diferente da que você montou à mão. Isso é só visual.
 
 Depois **ajuste**:
 
@@ -804,12 +818,13 @@ Depois **ajuste**:
 |---|---|---|
 | Nó mqtt in sem "connected" | Rede bloqueando a porta 1883 | Teste em outra rede / roteador do celular |
 | Nada chega no debug | `aluno` diferente no ESP32 e no Node-RED | Conferir o número nos tópicos |
-| Nada grava no Influx | Token/URL/org/bucket errados | Ver o erro no painel de debug; refazer os 4 dados |
-| Erro 401 no Influx | Token inválido ou sem permissão de escrita | Gerar token novo com Write no bucket |
+| Nada grava no Influx | Token/URL/org/bucket errados (lembre: a URL e a org vêm preenchidas com valores de exemplo) | Ver o erro no painel de depuração; refazer os 4 dados |
+| `HttpError: unauthorized access` no Influx | Token inválido ou sem permissão de escrita | Gerar token novo com Write no bucket |
+| Widget não aparece em `/ui` | Campo Group ficou como *nenhum* | Abrir o widget e escolher o grupo `ESP32` |
 | LED não responde | Tópico errado ou código antigo no ESP32 | Regravar o código desta aula |
 | LED verde e vermelho acesos juntos | Teste manual deixou um aceso | Gire o potenciômetro e aguarde a próxima leitura |
 | LED não acende nunca | Polaridade invertida ou sem resistor/GND | Conferir perna longa e GND |
-| Dashboard vazio | Falta Deploy ou dashboard não instalado | Instalar `node-red-dashboard` e dar Deploy |
+| Dashboard vazio | Falta implementar ou dashboard não instalado | Instalar `node-red-dashboard` e clicar em implementar |
 | LEDs param de mudar | Node-RED parado | Verificar a janela do cmd |
 
 ### 6.3 Atividade
